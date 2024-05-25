@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 import os
 
- # Import Namespaces:
+# Import Namespaces:
 from azure.core.credentials import AzureKeyCredential
 from azure.ai.textanalytics import TextAnalyticsClient
 
@@ -20,31 +20,44 @@ def main():
         reviews_folder = 'reviews'
         for file_name in os.listdir(reviews_folder):
             
-            # Read the file contents:
+            # Read the File Contents:
             print('\n-------------\n' + file_name)
             text = open(os.path.join(reviews_folder, file_name), encoding='utf8').read()
             print('\n' + text)
 
-            # Get language:
+            # Get Language:
             detectedLanguage = ai_client.detect_language(documents=[text])[0]
             print('\nLanguage: {}'.format(detectedLanguage.primary_language.name))
             
-            # Get sentiment:
+            # Get Sentiment:
+            sentimentAnalysis = ai_client.analyze_sentiment(documents=[text])[0]
+            print("\nSentiment: {}".format(sentimentAnalysis.sentiment))
 
+            # Get Key Phrases:
+            phrases = ai_client.extract_key_phrases(documents=[text])[0].key_phrases
+            if len(phrases) > 0:
+               print("\nKey Phrases:")
+               for phrase in phrases:
+                   print('\t{}'.format(phrase))
+                
+            # Get Entities:
+            entities = ai_client.recognize_entities(documents=[text])[0].entities
+            if len(entities) > 0:
+                print("\nEntities")
+                for entity in entities:
+                    print('\t{} ({})'.format(entity.text, entity.category))
 
-            # Get key phrases
-
-
-            # Get entities
-
-
-            # Get linked entities
-
-
-
+            # Get Linked Entities:
+            entities = ai_client.recognize_linked_entities(documents=[text])[0].entities
+            if len(entities) > 0:
+                print("\nLinks")
+                for linked_entity in entities:
+                    print('\t{} ({})'.format(linked_entity.name, linked_entity.url))
+                 
     except Exception as ex:
         print(ex)
 
-
 if __name__ == "__main__":
     main()
+
+# At the end, in integrated terminal for the text-analysis folder, enter the command [python text-analysis.py] to run the program.
