@@ -1,23 +1,26 @@
+# First, install the Azure AI Speech SDK package: [pip install azure-cognitiveservices-speech==1.30.0]
+
 from dotenv import load_dotenv
 from datetime import datetime
 import os
 
-# Import namespaces
-
+# Import Namespaces:
+import azure.cognitiveservices.speech as speech_sdk
 
 def main():
     try:
         global speech_config
 
-        # Get Configuration Settings
+        # Get Configuration Settings:
         load_dotenv()
         ai_key = os.getenv('SPEECH_KEY')
         ai_region = os.getenv('SPEECH_REGION')
 
-        # Configure speech service
-        
+        # Configure Speech Service:
+        speech_config = speech_sdk.SpeechConfig(ai_key, ai_region)
+        print('Ready to use speech service in:', speech_config.region)
 
-        # Get spoken input
+        # Get Spoken Input:
         command = TranscribeCommand()
         if command.lower() == 'what time is it?':
             TellTime()
@@ -28,30 +31,58 @@ def main():
 def TranscribeCommand():
     command = ''
 
-    # Configure speech recognition
+    # Configure Speech Recognition:
+    audio_config = speech_sdk.AudioConfig(use_default_microphone=True)
+    speech_recognizer = speech_sdk.SpeechRecognizer(speech_config, audio_config)
+    print('Speak now...')
 
+    # Process Speech Input:
+    speech = speech_recognizer.recognize_once_async().get()
+    if speech.reason == speech_sdk.ResultReason.RecognizedSpeech:
+        command = speech.text
+        print(command)
+    else:
+        print(speech.reason)
+        if speech.reason == speech_sdk.ResultReason.Canceled:
+            cancellation = speech.cancellation_details
+            print(cancellation.reason)
+            print(cancellation.error_details)
 
-    # Process speech input
-
-
-    # Return the command
+    # Return the command:
     return command
-
 
 def TellTime():
     now = datetime.now()
     response_text = 'The time is {}:{:02d}'.format(now.hour,now.minute)
 
+    # Configure Speech Synthesis:
+    speech_config.speech_synthesis_voice_name = "en-GB-RyanNeural" # to specify an alternative voice, change for: [speech_config.speech_synthesis_voice_name = 'en-GB-LibbyNeural']
+    speech_synthesizer = speech_sdk.SpeechSynthesizer(speech_config)
 
-    # Configure speech synthesis
+    '''
+    # Synthesize Spoken Output:
+    speak = speech_synthesizer.speak_text_async(response_text).get()
+    if speak.reason != speech_sdk.ResultReason.SynthesizingAudioCompleted:
+        print(speak.reason)
+    '''
     
-
-    # Synthesize spoken output
-
-
-    # Print the response
+    # Synthesize Spoken Output (using Speech Synthesis Markup Language):
+    responseSsml = " \
+        <speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'> \
+            <voice name='en-GB-LibbyNeural'> \
+                {} \
+                <break strength='weak'/> \
+                Time to end this lab! \
+            </voice> \
+        </speak>".format(response_text)
+    speak = speech_synthesizer.speak_ssml_async(responseSsml).get()
+    if speak.reason != speech_sdk.ResultReason.SynthesizingAudioCompleted:
+        print(speak.reason)
+        
+    # Print the response:
     print(response_text)
-
 
 if __name__ == "__main__":
     main()
+
+# At the end, enter the following command to test and run the program: [ python speaking-clock.py]
