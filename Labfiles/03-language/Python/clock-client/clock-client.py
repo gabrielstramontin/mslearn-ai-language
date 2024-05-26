@@ -1,43 +1,139 @@
-from dotenv import load_dotenv
+# First, install the Azure AI Language conversational language understanding SDK package: [pip install azure-ai-language-conversations]
+
 import os
 import json
+
+from dotenv import load_dotenv
 from datetime import datetime, timedelta, date, timezone
 from dateutil.parser import parse as is_date
 
-# Import namespaces
-
+# Import Namespaces:
+from azure.core.credentials import AzureKeyCredential
+from azure.ai.language.conversations import ConversationAnalysisClient
 
 def main():
-
     try:
-        # Get Configuration Settings
+        # Get Configuration Settings:
         load_dotenv()
         ls_prediction_endpoint = os.getenv('LS_CONVERSATIONS_ENDPOINT')
         ls_prediction_key = os.getenv('LS_CONVERSATIONS_KEY')
 
-        # Get user input (until they enter "quit")
+        # Get User Input (until they enter "quit"):
         userText = ''
         while userText.lower() != 'quit':
             userText = input('\nEnter some text ("quit" to stop)\n')
             if userText.lower() != 'quit':
 
-                # Create a client for the Language service model
+                # Create a client for the Language Service Model:
+                client = ConversationAnalysisClient(
+                    ls_prediction_endpoint, AzureKeyCredential(ls_prediction_key))
 
-                # Call the Language service model to get intent and entities
-
-                # Apply the appropriate action
+                # Call the Language Service Model to get intent and entities:
+                cls_project = 'Clock'
+                deployment_slot = 'production'
+    
+                with client:
+                    query = userText
+                    result = client.analyze_conversation(
+                        task={
+                            "kind": "Conversation",
+                            "analysisInput": {
+                                "conversationItem": {
+                                    "participantId": "1",
+                                    "id": "1",
+                                    "modality": "text",
+                                    "language": "en",
+                                    "text": query
+                                },
+                                "isLoggingEnabled": False
+                            },
+                            "parameters": {
+                                "projectName": cls_project,
+                                "deploymentName": deployment_slot,
+                                "verbose": True
+                            }
+                        }
+                    )
+        
+                top_intent = result["result"]["prediction"]["topIntent"]
+                entities = result["result"]["prediction"]["entities"]
+            
+                print("view top intent:")
+                print("\ttop intent: {}".format(result["result"]["prediction"]["topIntent"]))
+                print("\tcategory: {}".format(result["result"]["prediction"]["intents"][0]["category"]))
+                print("\tconfidence score: {}\n".format(result["result"]["prediction"]["intents"][0]["confidenceScore"]))
+            
+                print("view entities:")
+                for entity in entities:
+                    print("\tcategory: {}".format(entity["category"]))
+                    print("\ttext: {}".format(entity["text"]))
+                    print("\tconfidence score: {}".format(entity["confidenceScore"]))
+            
+                print("query: {}".format(result["result"]["query"]))
+                
+                # Apply the appropriate action:
+                if top_intent == 'GetTime':
+                location = 'local'
+                
+                    # Check for Entities:
+                    if len(entities) > 0:
+                        
+                        # Check for a Location Entity:
+                        for entity in entities:
+                        if 'Location' == entity["category"]:
+                            
+                            # ML entities are strings, get the first one:
+                            location = entity["text"]
+                            
+                    # Get the time for the specified location:
+                    print(GetTime(location))
+    
+                elif top_intent == 'GetDay':
+                    date_string = date.today().strftime("%m/%d/%Y")
+                    # Check for Entities:
+                    if len(entities) > 0:
+             
+                        # Check for a Date Entity:
+                        for entity in entities:
+                            if 'Date' == entity["category"]:
+                     
+                                # Regex entities are strings, get the first one:
+                                date_string = entity["text"]
+                    
+                    # Get the day for the specified date:
+                    print(GetDay(date_string))
+    
+                elif top_intent == 'GetDate':
+                    day = 'today'
+                    # Check for Entities:
+                    if len(entities) > 0:
+                        
+                        # Check for a Weekday entity:
+                        for entity in entities:
+                            if 'Weekday' == entity["category"]:
+                            
+                            # List entities are lists:
+                                day = entity["text"]
+                                
+                    # Get the date for the specified day:
+                    print(GetDate(day))
+    
+                else:
+                    # Some other intent (for example, "None") was predicted:
+                    print('Try asking me for the time, the day, or the date.')
 
     except Exception as ex:
         print(ex)
 
-
 def GetTime(location):
     time_string = ''
-
-    # Note: To keep things simple, we'll ignore daylight savings time and support only a few cities.
-    # In a real app, you'd likely use a web service API (or write  more complex code!)
-    # Hopefully this simplified example is enough to get the the idea that you
-    # use LU to determine the intent and entities, then implement the appropriate logic
+    
+    '''
+    Note:
+    To keep things simple, we'll ignore daylight savings time and support only a few cities.
+    In a real app, you'd likely use a web service API (or write  more complex code!).
+    Hopefully this simplified example is enough to get the the idea that you use LU to determine the intent and entities, then implement the appropriate logic.
+    '''
 
     if location.lower() == 'local':
         now = datetime.now()
@@ -80,7 +176,7 @@ def GetDate(day):
 
     today = date.today()
 
-    # To keep things simple, assume the named day is in the current week (Sunday to Saturday)
+    # To keep things simple, assume the named day is in the current week (Sunday to Saturday):
     day = day.lower()
     if day == 'today':
         date_string = today.strftime("%m/%d/%Y")
@@ -93,7 +189,7 @@ def GetDate(day):
     return date_string
 
 def GetDay(date_string):
-    # Note: To keep things simple, dates must be entered in US format (MM/DD/YYYY)
+    # Note: To keep things simple, dates must be entered in US format (MM/DD/YYYY):
     try:
         date_object = datetime.strptime(date_string, "%m/%d/%Y")
         day_string = date_object.strftime("%A")
@@ -103,3 +199,5 @@ def GetDay(date_string):
 
 if __name__ == "__main__":
     main()
+
+# At the end, in the integrated terminal, enter the following command to test and run the program: [python clock-client.py]
